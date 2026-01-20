@@ -22,9 +22,11 @@ public class PythonApiController {
     /**
      * Health check endpoint
      * GET /python-api/health
+     *
+     * ✅ PUBLIC endpoint (used by Kubernetes, curl, monitoring)
      */
     @GetMapping("/health")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGEMENT')")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<HealthCheckResponse> checkHealth() {
         HealthCheckResponse response = pythonApiClient.checkHealth();
         return ResponseEntity.ok(response);
@@ -33,11 +35,15 @@ public class PythonApiController {
     /**
      * Execute automation endpoint
      * POST /python-api/execute
+     *
+     * 🔐 PROTECTED endpoint (business operation)
      */
     @PostMapping("/execute")
     @PreAuthorize("hasAnyRole('ADMIN', 'OPERATIONS')")
-    public ResponseEntity<AutomationResponse> executeAutomation(@Valid @RequestBody AutomationEvent event) {
+    public ResponseEntity<AutomationResponse> executeAutomation(
+            @Valid @RequestBody AutomationEvent event) {
         AutomationResponse response = pythonApiClient.executeAutomation(event);
         return ResponseEntity.ok(response);
     }
 }
+
