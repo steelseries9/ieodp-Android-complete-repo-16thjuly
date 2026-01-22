@@ -11,7 +11,7 @@ data:
   MYSQL_PASSWORD: cGFzczEyMw==        # pass123
 ---
 # =========================
-# MySQL Headless Service (for StatefulSet)
+# MySQL Headless Service
 # =========================
 apiVersion: v1
 kind: Service
@@ -64,7 +64,7 @@ spec:
               key: MYSQL_ROOT_PASSWORD
 ---
 # =========================
-# MySQL Service (for apps)
+# MySQL Service
 # =========================
 apiVersion: v1
 kind: Service
@@ -129,7 +129,7 @@ spec:
       targetPort: 8000
 ---
 # =========================
-# Spring Boot Backend Deployment
+# Spring Boot Deployment
 # =========================
 apiVersion: apps/v1
 kind: Deployment
@@ -214,5 +214,4 @@ spec:
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30080
 
