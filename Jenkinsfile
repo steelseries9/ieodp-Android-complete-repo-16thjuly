@@ -60,7 +60,8 @@ docker push $REGISTRY/python-backend:$TAG
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
 echo "Deploying to namespace: ${ENV}"
 
 kubectl create namespace ${ENV} --dry-run=client -o yaml | kubectl apply -f -
@@ -78,6 +79,7 @@ springboot=$REGISTRY/springboot-backend:$TAG -n ${ENV}
 kubectl set image deployment/python-backend \
 python=$REGISTRY/python-backend:$TAG -n ${ENV}
 '''
+                }
             }
         }
     }
