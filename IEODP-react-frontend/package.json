@@ -2,7 +2,7 @@
   "name": "intelligent-enterprise-operational-decision-platform",
   "private": true,
   "version": "0.0.1",
-  "author": "Tumma Venkata Sai",
+  "author": "priacc innovations",
   "type": "module",
   "scripts": {
     "dev": "vite",
