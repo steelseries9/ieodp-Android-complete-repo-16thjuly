@@ -185,6 +185,9 @@ Detailed documentation is available in the `docs/` folder:
 * Workflow Design
 * Security
 * Performance
+* Android deployment (Capacitor)
+
+Android packaging steps are available in `docs/ANDROID_DEPLOYMENT.md`.
 
 ---
 
