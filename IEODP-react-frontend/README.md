@@ -209,7 +209,7 @@ IEODP is built as a **real enterprise workflow platform**, not a demo UI. It dem
 
 ## 👨‍💻 Author
 
-Developed by ** (priacc innovations team Engineer)**
+Developed by ** (Priacc innovations team)**
 
 ---
 
