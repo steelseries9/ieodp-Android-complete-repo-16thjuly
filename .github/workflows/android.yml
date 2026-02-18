@@ -16,11 +16,12 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # ---------------- NODE ----------------
+    # ---------------- NODE SETUP ----------------
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: 20
+        cache: 'npm'
 
     # ---------------- JAVA ----------------
     - name: Setup Java
@@ -33,7 +34,7 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # ---------------- CREATE ENV FILE ----------------
+    # ---------------- ENV FILE ----------------
     - name: Create Production Env File
       working-directory: IEODP-react-frontend
       run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
@@ -43,16 +44,22 @@ jobs:
       working-directory: IEODP-react-frontend
       run: npm install
 
-    # ---------------- BUILD REACT ----------------
-    - name: Build React
+    # ---------------- INSTALL CAPACITOR ----------------
+    - name: Install Capacitor
+      working-directory: IEODP-react-frontend
+      run: npm install @capacitor/core @capacitor/cli @capacitor/android
+
+    # ---------------- BUILD FRONTEND ----------------
+    - name: Build React App
       working-directory: IEODP-react-frontend
       run: npm run build
 
-    # ---------------- ADD ANDROID ----------------
-    - name: Initialize Capacitor
+    # ---------------- INIT ANDROID ----------------
+    - name: Initialize Capacitor Android
       working-directory: IEODP-react-frontend
-      run: npx cap add android || echo "Android already exists"
+      run: npx cap add android || echo "Android project already exists"
 
+    # ---------------- SYNC ANDROID ----------------
     - name: Sync Capacitor
       working-directory: IEODP-react-frontend
       run: npx cap sync android
@@ -62,7 +69,12 @@ jobs:
       run: |
         echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
 
-    # ---------------- BUILD SIGNED RELEASE ----------------
+    # ---------------- FIX GRADLE PERMISSION ----------------
+    - name: Grant Gradle Permission
+      working-directory: IEODP-react-frontend/android
+      run: chmod +x gradlew
+
+    # ---------------- BUILD SIGNED APK ----------------
     - name: Build Signed Release APK
       working-directory: IEODP-react-frontend/android
       run: |
@@ -72,8 +84,8 @@ jobs:
         -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
         -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
-    # ---------------- UPLOAD ARTIFACT ----------------
-    - name: Upload Signed APK
+    # ---------------- UPLOAD APK ----------------
+    - name: Upload Signed APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ieodp-release-apk
