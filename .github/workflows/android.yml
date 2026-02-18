@@ -1,4 +1,4 @@
-name: Android Build Pipeline
+name: Android Release Build (Signed)
 
 on:
   workflow_dispatch:
@@ -16,13 +16,13 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # ---------------- NODE SETUP ----------------
+    # ---------------- NODE ----------------
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: 20
 
-    # ---------------- JAVA SETUP ----------------
+    # ---------------- JAVA ----------------
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
@@ -30,37 +30,51 @@ jobs:
         java-version: ${{ env.JAVA_VERSION }}
 
     # ---------------- ANDROID SDK ----------------
-    - name: Install Android SDK
+    - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    # ---------------- CREATE ENV FILE ----------------
+    - name: Create Production Env File
+      working-directory: IEODP-react-frontend
+      run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
+
     # ---------------- INSTALL DEPENDENCIES ----------------
-    - name: Install Frontend Dependencies
+    - name: Install Dependencies
       working-directory: IEODP-react-frontend
       run: npm install
 
     # ---------------- BUILD REACT ----------------
-    - name: Build React App
+    - name: Build React
       working-directory: IEODP-react-frontend
       run: npm run build
 
-    # ---------------- ADD ANDROID PLATFORM ----------------
-    - name: Initialize Capacitor Android
+    # ---------------- ADD ANDROID ----------------
+    - name: Initialize Capacitor
       working-directory: IEODP-react-frontend
-      run: npx cap add android || echo "Android already added"
+      run: npx cap add android || echo "Android already exists"
 
-    # ---------------- SYNC ----------------
     - name: Sync Capacitor
       working-directory: IEODP-react-frontend
       run: npx cap sync android
 
-    # ---------------- BUILD APK ----------------
-    - name: Build APK
+    # ---------------- DECODE KEYSTORE ----------------
+    - name: Decode Keystore
+      run: |
+        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
+
+    # ---------------- BUILD SIGNED RELEASE ----------------
+    - name: Build Signed Release APK
       working-directory: IEODP-react-frontend/android
-      run: ./gradlew assembleDebug
+      run: |
+        ./gradlew assembleRelease \
+        -Pandroid.injected.signing.store.file=app/ieodp-release-key.jks \
+        -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+        -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
+        -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
     # ---------------- UPLOAD ARTIFACT ----------------
-    - name: Upload APK Artifact
+    - name: Upload Signed APK
       uses: actions/upload-artifact@v4
       with:
-        name: ieodp-android-apk
-        path: IEODP-react-frontend/android/app/build/outputs/apk/debug/app-debug.apk
+        name: ieodp-release-apk
+        path: IEODP-react-frontend/android/app/build/outputs/apk/release/app-release.apk
