@@ -1,0 +1,66 @@
+name: Android Build Pipeline
+
+on:
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: 17
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # ---------------- CHECKOUT ----------------
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # ---------------- NODE SETUP ----------------
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    # ---------------- JAVA SETUP ----------------
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ env.JAVA_VERSION }}
+
+    # ---------------- ANDROID SDK ----------------
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v3
+
+    # ---------------- INSTALL DEPENDENCIES ----------------
+    - name: Install Frontend Dependencies
+      working-directory: IEODP-react-frontend
+      run: npm install
+
+    # ---------------- BUILD REACT ----------------
+    - name: Build React App
+      working-directory: IEODP-react-frontend
+      run: npm run build
+
+    # ---------------- ADD ANDROID PLATFORM ----------------
+    - name: Initialize Capacitor Android
+      working-directory: IEODP-react-frontend
+      run: npx cap add android || echo "Android already added"
+
+    # ---------------- SYNC ----------------
+    - name: Sync Capacitor
+      working-directory: IEODP-react-frontend
+      run: npx cap sync android
+
+    # ---------------- BUILD APK ----------------
+    - name: Build APK
+      working-directory: IEODP-react-frontend/android
+      run: ./gradlew assembleDebug
+
+    # ---------------- UPLOAD ARTIFACT ----------------
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ieodp-android-apk
+        path: IEODP-react-frontend/android/app/build/outputs/apk/debug/app-debug.apk
