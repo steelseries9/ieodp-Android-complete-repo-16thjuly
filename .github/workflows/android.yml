@@ -11,83 +11,68 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    # ---------------- CHECKOUT ----------------
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: IEODP-react-frontend/package-lock.json
 
-    # ---------------- NODE SETUP ----------------
-    - name: Setup Node
-  uses: actions/setup-node@v4
-  with:
-    node-version: 20
-    cache: 'npm'
-    cache-dependency-path: IEODP-react-frontend/package-lock.json
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
 
-    # ---------------- JAVA ----------------
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: ${{ env.JAVA_VERSION }}
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-    # ---------------- ANDROID SDK ----------------
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      - name: Create Production Env File
+        working-directory: IEODP-react-frontend
+        run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
 
-    # ---------------- ENV FILE ----------------
-    - name: Create Production Env File
-      working-directory: IEODP-react-frontend
-      run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
+      - name: Install Dependencies
+        working-directory: IEODP-react-frontend
+        run: npm install
 
-    # ---------------- INSTALL DEPENDENCIES ----------------
-    - name: Install Dependencies
-      working-directory: IEODP-react-frontend
-      run: npm install
+      - name: Install Capacitor
+        working-directory: IEODP-react-frontend
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
-    # ---------------- INSTALL CAPACITOR ----------------
-    - name: Install Capacitor
-      working-directory: IEODP-react-frontend
-      run: npm install @capacitor/core @capacitor/cli @capacitor/android
+      - name: Build React App
+        working-directory: IEODP-react-frontend
+        run: npm run build
 
-    # ---------------- BUILD FRONTEND ----------------
-    - name: Build React App
-      working-directory: IEODP-react-frontend
-      run: npm run build
+      - name: Initialize Capacitor Android
+        working-directory: IEODP-react-frontend
+        run: npx cap add android || echo "Android project already exists"
 
-    # ---------------- INIT ANDROID ----------------
-    - name: Initialize Capacitor Android
-      working-directory: IEODP-react-frontend
-      run: npx cap add android || echo "Android project already exists"
+      - name: Sync Capacitor
+        working-directory: IEODP-react-frontend
+        run: npx cap sync android
 
-    # ---------------- SYNC ANDROID ----------------
-    - name: Sync Capacitor
-      working-directory: IEODP-react-frontend
-      run: npx cap sync android
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
 
-    # ---------------- DECODE KEYSTORE ----------------
-    - name: Decode Keystore
-      run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
+      - name: Grant Gradle Permission
+        working-directory: IEODP-react-frontend/android
+        run: chmod +x gradlew
 
-    # ---------------- FIX GRADLE PERMISSION ----------------
-    - name: Grant Gradle Permission
-      working-directory: IEODP-react-frontend/android
-      run: chmod +x gradlew
+      - name: Build Signed Release APK
+        working-directory: IEODP-react-frontend/android
+        run: |
+          ./gradlew assembleRelease \
+          -Pandroid.injected.signing.store.file=app/ieodp-release-key.jks \
+          -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
-    # ---------------- BUILD SIGNED APK ----------------
-    - name: Build Signed Release APK
-      working-directory: IEODP-react-frontend/android
-      run: |
-        ./gradlew assembleRelease \
-        -Pandroid.injected.signing.store.file=app/ieodp-release-key.jks \
-        -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
-        -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
-        -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
-
-    # ---------------- UPLOAD APK ----------------
-    - name: Upload Signed APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ieodp-release-apk
-        path: IEODP-react-frontend/android/app/build/outputs/apk/release/app-release.apk
+      - name: Upload Signed APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ieodp-release-apk
+          path: IEODP-react-frontend/android/app/build/outputs/apk/release/app-release.apk
