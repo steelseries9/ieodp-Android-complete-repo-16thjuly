@@ -5,16 +5,21 @@ on:
 
 env:
   JAVA_VERSION: 21
-  KOTLIN_VERSION: 1.8.22
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------
+      # Checkout Repository
+      # ---------------------------
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # ---------------------------
+      # Setup Node.js
+      # ---------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -22,19 +27,31 @@ jobs:
           cache: npm
           cache-dependency-path: IEODP-react-frontend/package-lock.json
 
+      # ---------------------------
+      # Setup Java 21
+      # ---------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
+      # ---------------------------
+      # Setup Android SDK
+      # ---------------------------
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # ---------------------------
+      # Create Production ENV File
+      # ---------------------------
       - name: Create Production Env File
         working-directory: IEODP-react-frontend
         run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
 
+      # ---------------------------
+      # Install Dependencies
+      # ---------------------------
       - name: Install NPM Dependencies
         working-directory: IEODP-react-frontend
         run: npm install
@@ -43,10 +60,16 @@ jobs:
         working-directory: IEODP-react-frontend
         run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
+      # ---------------------------
+      # Build React App
+      # ---------------------------
       - name: Build React App
         working-directory: IEODP-react-frontend
         run: npm run build
 
+      # ---------------------------
+      # Initialize Android Project
+      # ---------------------------
       - name: Initialize Capacitor Android
         working-directory: IEODP-react-frontend
         run: npx cap add android || echo "Android project already exists"
@@ -55,7 +78,9 @@ jobs:
         working-directory: IEODP-react-frontend
         run: npx cap sync android
 
-      # 🔥 Proper Kotlin Resolution Fix (No YAML Issues)
+      # ---------------------------
+      # Force Kotlin Dependency Resolution (Fix duplicate classes)
+      # ---------------------------
       - name: Force Kotlin Dependency Resolution
         working-directory: IEODP-react-frontend/android
         run: |
@@ -70,23 +95,35 @@ jobs:
           echo "    }" >> build.gradle
           echo "}" >> build.gradle
 
+      # ---------------------------
+      # Decode Android Keystore
+      # ---------------------------
       - name: Decode Android Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
 
+      # ---------------------------
+      # Grant Gradle Execute Permission
+      # ---------------------------
       - name: Grant Gradle Execute Permission
         working-directory: IEODP-react-frontend/android
         run: chmod +x gradlew
 
+      # ---------------------------
+      # Build Signed Release APK (Fixed Keystore Path)
+      # ---------------------------
       - name: Build Signed Release APK
         working-directory: IEODP-react-frontend/android
         run: |
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=app/ieodp-release-key.jks \
+            -Pandroid.injected.signing.store.file=$PWD/app/ieodp-release-key.jks \
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
+      # ---------------------------
+      # Upload Signed APK Artifact
+      # ---------------------------
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
