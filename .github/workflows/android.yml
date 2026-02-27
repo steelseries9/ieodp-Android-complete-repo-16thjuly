@@ -12,45 +12,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------
+      # Checkout
+      # ---------------------------
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # ------------------------
+      # ---------------------------
       # Setup Node
-      # ------------------------
+      # ---------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: IEODP-react-frontend/package-lock.json
 
-      # ------------------------
-      # Setup Java 21 (Fix #1)
-      # ------------------------
-      - name: Setup Java 21
+      # ---------------------------
+      # Setup Java 21
+      # ---------------------------
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
-      # ------------------------
+      # ---------------------------
       # Setup Android SDK
-      # ------------------------
+      # ---------------------------
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ------------------------
+      # ---------------------------
       # Create Production ENV
-      # ------------------------
+      # ---------------------------
       - name: Create Production Env File
         working-directory: IEODP-react-frontend
-        run: |
-          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
+        run: echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" > .env
 
-      # ------------------------
+      # ---------------------------
       # Install Dependencies
-      # ------------------------
+      # ---------------------------
       - name: Install NPM Dependencies
         working-directory: IEODP-react-frontend
         run: npm install
@@ -59,16 +61,16 @@ jobs:
         working-directory: IEODP-react-frontend
         run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      # ------------------------
+      # ---------------------------
       # Build React App
-      # ------------------------
+      # ---------------------------
       - name: Build React App
         working-directory: IEODP-react-frontend
         run: npm run build
 
-      # ------------------------
-      # Initialize Android Project
-      # ------------------------
+      # ---------------------------
+      # Initialize Android
+      # ---------------------------
       - name: Initialize Capacitor Android
         working-directory: IEODP-react-frontend
         run: npx cap add android || echo "Android project already exists"
@@ -77,31 +79,42 @@ jobs:
         working-directory: IEODP-react-frontend
         run: npx cap sync android
 
-      # ------------------------
-      # Force Kotlin Version (Fix #2)
-      # ------------------------
-      - name: Force Kotlin Version Compatibility
+      # ---------------------------
+      # FORCE Kotlin Version Properly (Real Fix)
+      # ---------------------------
+      - name: Force Kotlin Dependency Resolution
         working-directory: IEODP-react-frontend/android
         run: |
-          echo "kotlin.version=${{ env.KOTLIN_VERSION }}" >> gradle.properties
+          cat <<EOF >> build.gradle
 
-      # ------------------------
+subprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == "org.jetbrains.kotlin") {
+                details.useVersion "${KOTLIN_VERSION}"
+            }
+        }
+    }
+}
+EOF
+
+      # ---------------------------
       # Decode Keystore
-      # ------------------------
+      # ---------------------------
       - name: Decode Android Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > IEODP-react-frontend/android/app/ieodp-release-key.jks
 
-      # ------------------------
+      # ---------------------------
       # Grant Gradle Permission
-      # ------------------------
+      # ---------------------------
       - name: Grant Gradle Execute Permission
         working-directory: IEODP-react-frontend/android
         run: chmod +x gradlew
 
-      # ------------------------
+      # ---------------------------
       # Build Signed Release APK
-      # ------------------------
+      # ---------------------------
       - name: Build Signed Release APK
         working-directory: IEODP-react-frontend/android
         run: |
@@ -111,9 +124,9 @@ jobs:
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      # ------------------------
+      # ---------------------------
       # Upload Artifact
-      # ------------------------
+      # ---------------------------
       - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
